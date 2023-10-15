@@ -1,6 +1,10 @@
 const { ipcRenderer } = require("electron");
-const { Menu } = require("@electron/remote");
+const { Menu, dialog } = require("@electron/remote");
 const fs = require('fs');
+
+// Global state
+let mediaRecorder;
+let recordedChunks = [];
 
 const desktopCapturer = {
   getSources: (opts) =>
@@ -9,10 +13,12 @@ const desktopCapturer = {
 
 const video = document.querySelector("video");
 const startBtn = document.getElementById("startBtn");
-const endBtn = document.getElementById("endBtn");
+const stopBtn = document.getElementById("stopBtn");
 const videoSelectBtn = document.getElementById("videoSelectBtn");
 
 videoSelectBtn.onclick = getVideoSources;
+startBtn.onclick = startRecording;
+stopBtn.onclick = stopRecording;
 
 async function getVideoSources() {
   const inputSources = await desktopCapturer.getSources({
@@ -30,9 +36,6 @@ async function getVideoSources() {
 
   videoOptionsMenu.popup();
 }
-
-let mediaRecorder;
-const recordedChunks = [];
 
 async function selectSource(source) {
   videoSelectBtn.innerText = source.name;
@@ -63,11 +66,23 @@ async function selectSource(source) {
   mediaRecorder.onstop = handleStop;
 }
 
-function handleDataAvailable(data) {
-  recordedChunks.push(e.data);
+function startRecording(evt) {
+  mediaRecorder.start();
+  startBtn.classList.add('is-danger');
+  startBtn.innerText = 'Recording';
 }
 
-async function handleStop(evt) {
+function stopRecording(evt) {
+  mediaRecorder.stop();
+  startBtn.classList.remove('is-danger');
+  startBtn.innerText = 'Start';
+}
+
+function handleDataAvailable(evt) {
+  recordedChunks.push(evt.data);
+}
+
+async function handleStop() {
   const blob = new Blob(recordedChunks, {
     type: "video/webm; codecs=vp9"
   });

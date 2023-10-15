@@ -28,3 +28,23 @@ async function getVideoSources() {
 
   videoOptionsMenu.popup();
 }
+
+async function selectSource(source) {
+  videoSelectBtn.innerText = source.name;
+
+  const constraints = {
+    audio: false,
+    video: {
+      mandatory: {
+        chromeMediaSource: 'desktop',
+        chromeMediaSourceId: source.id
+      }
+    }
+  };
+
+  // create a stream of video output from the source window/screen
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+  video.srcObject = stream;
+  video.play();
+}

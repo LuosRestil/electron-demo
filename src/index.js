@@ -1,6 +1,12 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer } = require("electron");
-const remote = require("@electron/remote/main");
-remote.initialize();
+const {
+  app,
+  desktopCapturer,
+  dialog,
+  ipcMain,
+  BrowserWindow,
+  Menu,
+} = require("electron");
+const fs = require("fs");
 const path = require("path");
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -15,18 +21,14 @@ const createWindow = () => {
     height: 600,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      nodeIntegration: true,
-      contextIsolation: false,
     },
   });
-
-  remote.enable(mainWindow.webContents);
 
   // and load the index.html of the app.
   mainWindow.loadFile(path.join(__dirname, "index.html"));
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 };
 
 // This method will be called when Electron has finished
@@ -53,7 +55,33 @@ app.on("activate", () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
-ipcMain.handle(
-  'DESKTOP_CAPTURER_GET_SOURCES',
-  (event, opts) => desktopCapturer.getSources(opts)
-)
+
+ipcMain.on("DISPLAY_VIDEO_SOURCES_MENU", async (evt) => {
+  const inputSources = await desktopCapturer.getSources({
+    types: ["window", "screen"],
+  });
+
+  const videoOptionsMenu = Menu.buildFromTemplate(
+    inputSources.map((source) => {
+      return {
+        label: source.name,
+        click: () => evt.sender.send("VIDEO_SOURCE_SELECTED", source),
+      };
+    })
+  );
+
+  videoOptionsMenu.popup();
+});
+
+ipcMain.on("SAVE_VIDEO_FILE", async (evt, uint8Array) => {
+  const buffer = Buffer.from(uint8Array.buffer);
+
+  const { filePath } = await dialog.showSaveDialog({
+    buttonLabel: "Save Video",
+    defaultPath: `vid-${Date.now()}.webm`,
+  });
+
+  fs.writeFile(filePath, buffer, () => {
+    evt.sender.send("VIDEO_FILE_SAVED");
+  });
+});
